@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高德地图测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        #map-container {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>高德地图功能测试</h1>
+        
+        <!-- API配置测试 -->
+        <div class="test-section">
+            <h3>1. API配置检查</h3>
+            <div id="config-status" class="status loading">正在检查API配置...</div>
+            <div>
+                <strong>API密钥状态：</strong> <span id="api-key-status">检查中...</span><br>
+                <strong>API密钥值：</strong> <span id="api-key-value">***</span>
+            </div>
+        </div>
+        
+        <!-- 网络连接测试 -->
+        <div class="test-section">
+            <h3>2. 高德地图API连接测试</h3>
+            <div id="network-status" class="status loading">正在测试网络连接...</div>
+            <button onclick="testNetworkConnection()">重新测试网络</button>
+        </div>
+        
+        <!-- 地图加载测试 -->
+        <div class="test-section">
+            <h3>3. 地图API加载测试</h3>
+            <div id="api-load-status" class="status loading">正在加载高德地图API...</div>
+            <button onclick="loadAmapAPI()" id="load-btn">重新加载地图API</button>
+        </div>
+        
+        <!-- 地图实例化测试 -->
+        <div class="test-section">
+            <h3>4. 地图实例化测试</h3>
+            <div id="map-status" class="status loading">等待API加载完成...</div>
+            <div id="map-container"></div>
+            <button onclick="initTestMap()" id="init-btn" disabled>创建地图实例</button>
+            <button onclick="testMarkers()" id="marker-btn" disabled>测试标记功能</button>
+        </div>
+        
+        <!-- 详细日志 -->
+        <div class="test-section">
+            <h3>5. 详细日志</h3>
+            <button onclick="clearLog()">清空日志</button>
+            <button onclick="exportLog()">导出日志</button>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let mapInstance = null;
+        let configData = null;
+        
+        // 日志记录功能
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('log');
+            const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
+            logElement.textContent += logEntry;
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            // 同时输出到控制台
+            if (type === 'error') {
+                console.error(message);
+            } else if (type === 'warn') {
+                console.warn(message);
+            } else {
+                console.log(message);
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+        
+        function exportLog() {
+            const logContent = document.getElementById('log').textContent;
+            const blob = new Blob([logContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `amap-test-log-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // 更新状态显示
+        function updateStatus(elementId, message, type = 'loading') {
+            const element = document.getElementById(elementId);
+            element.className = `status ${type}`;
+            element.textContent = message;
+        }
+        
+        // 1. 检查API配置
+        async function checkAPIConfig() {
+            log('开始检查API配置...');
+            try {
+                const response = await fetch('/api/config/map');
+                configData = await response.json();
+                
+                if (configData.success && configData.has_key) {
+                    updateStatus('config-status', '✅ API配置正常', 'success');
+                    document.getElementById('api-key-status').textContent = '✅ 已配置';
+                    document.getElementById('api-key-value').textContent = configData.amap_api_key.substring(0, 8) + '...';
+                    log(`API密钥配置成功: ${configData.amap_api_key.substring(0, 8)}...`);
+                    return true;
+                } else {
+                    updateStatus('config-status', '❌ API密钥未配置或无效', 'error');
+                    document.getElementById('api-key-status').textContent = '❌ 未配置';
+                    log('API密钥未配置或无效', 'error');
+                    return false;
+                }
+            } catch (error) {
+                updateStatus('config-status', '❌ 无法获取API配置', 'error');
+                log(`获取API配置失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        // 2. 测试网络连接
+        async function testNetworkConnection() {
+            log('开始测试高德地图API连接...');
+            updateStatus('network-status', '正在测试网络连接...', 'loading');
+            
+            if (!configData || !configData.amap_api_key) {
+                updateStatus('network-status', '❌ 请先配置API密钥', 'error');
+                return false;
+            }
+            
+            try {
+                // 测试高德API基础连接
+                const testUrl = `https://webapi.amap.com/maps?v=2.0&key=${configData.amap_api_key}`;
+                log(`测试API URL: ${testUrl}`);
+                
+                const response = await fetch(testUrl, { mode: 'no-cors' });
+                updateStatus('network-status', '✅ 网络连接正常', 'success');
+                log('高德地图API网络连接测试成功');
+                return true;
+            } catch (error) {
+                updateStatus('network-status', `❌ 网络连接失败: ${error.message}`, 'error');
+                log(`网络连接测试失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        // 3. 加载高德地图API
+        async function loadAmapAPI() {
+            log('开始加载高德地图API...');
+            updateStatus('api-load-status', '正在加载高德地图API...', 'loading');
+            document.getElementById('load-btn').disabled = true;
+            
+            if (!configData || !configData.amap_api_key) {
+                updateStatus('api-load-status', '❌ API密钥未配置', 'error');
+                document.getElementById('load-btn').disabled = false;
+                return false;
+            }
+            
+            return new Promise((resolve, reject) => {
+                // 如果已经加载过，先清理
+                if (window.AMap) {
+                    log('检测到已存在的AMap实例，清理中...');
+                    delete window.AMap;
+                }
+                
+                // 移除可能存在的旧script标签
+                const oldScript = document.querySelector('script[src*="webapi.amap.com"]');
+                if (oldScript) {
+                    log('移除旧的API script标签');
+                    oldScript.remove();
+                }
+                
+                const script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = `https://webapi.amap.com/maps?v=2.0&key=${configData.amap_api_key}&plugin=AMap.Scale,AMap.ToolBar,AMap.InfoWindow`;
+                
+                script.onload = () => {
+                    log('高德地图API加载成功');
+                    updateStatus('api-load-status', '✅ 高德地图API加载成功', 'success');
+                    document.getElementById('load-btn').disabled = false;
+                    document.getElementById('init-btn').disabled = false;
+                    updateStatus('map-status', '准备就绪，可以创建地图实例', 'success');
+                    resolve(true);
+                };
+                
+                script.onerror = (error) => {
+                    log(`高德地图API加载失败: ${error.message || '未知错误'}`, 'error');
+                    updateStatus('api-load-status', '❌ 高德地图API加载失败', 'error');
+                    document.getElementById('load-btn').disabled = false;
+                    reject(new Error('API加载失败'));
+                };
+                
+                log(`添加script标签: ${script.src}`);
+                document.head.appendChild(script);
+            });
+        }
+        
+        // 4. 创建地图实例
+        function initTestMap() {
+            log('开始创建地图实例...');
+            updateStatus('map-status', '正在创建地图实例...', 'loading');
+            document.getElementById('init-btn').disabled = true;
+            
+            if (!window.AMap) {
+                updateStatus('map-status', '❌ 高德地图API未加载', 'error');
+                document.getElementById('init-btn').disabled = false;
+                return false;
+            }
+            
+            try {
+                // 清理之前的地图实例
+                if (mapInstance) {
+                    log('清理之前的地图实例');
+                    mapInstance.destroy();
+                }
+                
+                // 创建新的地图实例
+                mapInstance = new AMap.Map('map-container', {
+                    zoom: 10,
+                    center: [116.397428, 39.90923], // 北京坐标
+                    mapStyle: 'amap://styles/normal',
+                    features: ['bg', 'road', 'building'],
+                    viewMode: '2D'
+                });
+                
+                log('地图实例创建成功');
+                updateStatus('map-status', '✅ 地图实例创建成功', 'success');
+                document.getElementById('init-btn').disabled = false;
+                document.getElementById('marker-btn').disabled = false;
+                
+                // 添加地图事件监听
+                mapInstance.on('complete', () => {
+                    log('地图加载完成');
+                });
+                
+                mapInstance.on('click', (e) => {
+                    log(`地图点击事件: 经度=${e.lnglat.getLng()}, 纬度=${e.lnglat.getLat()}`);
+                });
+                
+                return true;
+                
+            } catch (error) {
+                log(`创建地图实例失败: ${error.message}`, 'error');
+                updateStatus('map-status', `❌ 创建地图实例失败: ${error.message}`, 'error');
+                document.getElementById('init-btn').disabled = false;
+                return false;
+            }
+        }
+        
+        // 5. 测试标记功能
+        function testMarkers() {
+            log('开始测试标记功能...');
+            
+            if (!mapInstance || !window.AMap) {
+                log('地图实例不存在，无法测试标记', 'error');
+                return false;
+            }
+            
+            try {
+                // 测试数据：北京到上海的几个主要站点
+                const testStations = [
+                    { name: '北京南', lat: 39.865, lng: 116.378, city: '北京' },
+                    { name: '天津南', lat: 39.088, lng: 117.186, city: '天津' },
+                    { name: '济南西', lat: 36.651, lng: 117.121, city: '济南' },
+                    { name: '南京南', lat: 31.946, lng: 118.713, city: '南京' },
+                    { name: '上海虹桥', lat: 31.196, lng: 121.315, city: '上海' }
+                ];
+                
+                testStations.forEach((station, index) => {
+                    // 创建标记
+                    const marker = new AMap.Marker({
+                        position: [station.lng, station.lat],
+                        title: station.name,
+                        offset: new AMap.Pixel(-10, -10)
+                    });
+                    
+                    // 创建信息窗口
+                    const infoWindow = new AMap.InfoWindow({
+                        content: `
+                            <div style="padding: 10px;">
+                                <h4>${station.name}</h4>
+                                <p>城市: ${station.city}</p>
+                                <p>坐标: ${station.lng}, ${station.lat}</p>
+                            </div>
+                        `,
+                        offset: new AMap.Pixel(0, -30)
+                    });
+                    
+                    // 添加点击事件
+                    marker.on('click', () => {
+                        infoWindow.open(mapInstance, marker.getPosition());
+                        log(`点击标记: ${station.name}`);
+                    });
+                    
+                    // 添加到地图
+                    mapInstance.add(marker);
+                    log(`添加标记: ${station.name} (${station.lng}, ${station.lat})`);
+                });
+                
+                // 创建路线折线
+                const linePoints = testStations.map(station => [station.lng, station.lat]);
+                const polyline = new AMap.Polyline({
+                    path: linePoints,
+                    strokeColor: '#4f9cf9',
+                    strokeWeight: 4,
+                    strokeOpacity: 0.8
+                });
+                mapInstance.add(polyline);
+                log('添加路线折线');
+                
+                // 自适应显示所有标记
+                mapInstance.setFitView();
+                log('地图视角自适应完成');
+                
+                log('标记功能测试完成 ✅', 'info');
+                return true;
+                
+            } catch (error) {
+                log(`标记功能测试失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        // 页面加载完成后自动开始测试
+        document.addEventListener('DOMContentLoaded', async () => {
+            log('=== 高德地图功能测试开始 ===');
+            
+            // 1. 检查API配置
+            const configOK = await checkAPIConfig();
+            if (!configOK) {
+                log('API配置检查失败，停止后续测试', 'error');
+                return;
+            }
+            
+            // 2. 测试网络连接
+            const networkOK = await testNetworkConnection();
+            if (!networkOK) {
+                log('网络连接测试失败，但继续尝试加载API', 'warn');
+            }
+            
+            // 3. 加载地图API
+            try {
+                await loadAmapAPI();
+                log('所有初始化测试完成 ✅');
+            } catch (error) {
+                log(`地图API加载失败: ${error.message}`, 'error');
+            }
+        });
+    </script>
+</body>
+</html> 

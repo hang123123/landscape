@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片加载测试</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #1a1a2e;
+            color: white;
+            padding: 20px;
+        }
+        
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .image-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        
+        .image-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .image-card:hover img {
+            transform: scale(1.05);
+        }
+        
+        .loading {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 8px;
+            display: inline-block;
+        }
+        
+        .success { background: #10b981; color: white; }
+        .error { background: #ef4444; color: white; }
+        .loading-status { background: #3b82f6; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🖼️ 图片加载测试页面</h1>
+    <p>测试各种图片源的加载效果和错误处理</p>
+    
+    <div class="test-section">
+        <h2>🏛️ 景点图片测试</h2>
+        <div class="image-grid" id="attractionGrid">
+            <!-- 景点图片将在这里生成 -->
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🍜 美食图片测试</h2>
+        <div class="image-grid" id="foodGrid">
+            <!-- 美食图片将在这里生成 -->
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>📊 加载统计</h2>
+        <div id="stats">
+            <p>总图片数: <span id="totalImages">0</span></p>
+            <p>成功加载: <span id="successCount" style="color: #10b981;">0</span></p>
+            <p>加载失败: <span id="errorCount" style="color: #ef4444;">0</span></p>
+            <p>正在加载: <span id="loadingCount" style="color: #3b82f6;">0</span></p>
+        </div>
+    </div>
+    
+    <script>
+        // 模拟景点和美食数据
+        const testData = {
+            attractions: [
+                { city: '北京', spots: ['故宫', '天安门', '长城', '天坛'] },
+                { city: '上海', spots: ['外滩', '东方明珠', '豫园', '南京路'] },
+                { city: '天津', spots: ['五大道', '古文化街', '天津之眼', '意式风情区'] },
+                { city: '济南', spots: ['趵突泉', '大明湖', '千佛山', '芙蓉街'] }
+            ],
+            foods: [
+                { city: '北京', foods: ['烤鸭', '炸酱面', '豆汁', '驴打滚'] },
+                { city: '上海', foods: ['小笼包', '生煎包', '白切鸡', '糖醋排骨'] },
+                { city: '天津', foods: ['狗不理包子', '煎饼果子', '耳朵眼炸糕', '十八街麻花'] },
+                { city: '济南', foods: ['把子肉', '甜沫', '油旋', '糖醋鲤鱼'] }
+            ]
+        };
+        
+        let stats = { total: 0, success: 0, error: 0, loading: 0 };
+        
+        // 城市特定图片映射
+        const cityImages = {
+            '北京': ['forbidden-city', 'great-wall', 'temple-of-heaven', 'beijing'],
+            '上海': ['shanghai-skyline', 'bund', 'oriental-pearl-tower', 'shanghai'],
+            '天津': ['tianjin', 'architecture', 'five-avenue', 'landmark'],
+            '济南': ['jinan', 'spring', 'daming-lake', 'landscape']
+        };
+        
+        // 美食关键词映射
+        const foodKeywords = {
+            '烤鸭': 'roast-duck',
+            '小笼包': 'xiaolongbao,dumpling',
+            '炸酱面': 'noodles,chinese',
+            '煎饼果子': 'chinese,pancake',
+            '狗不理包子': 'baozi,steamed,bun',
+            '把子肉': 'chinese,pork,braised'
+        };
+        
+        // 获取景点图片URL
+        function getAttractionImage(spot, city, index) {
+            const cityKeywords = cityImages[city] || [city, 'landmark', 'tourism'];
+            
+            const imageServices = [
+                `https://source.unsplash.com/300x200/?${encodeURIComponent(cityKeywords[0])},architecture`,
+                `https://source.unsplash.com/300x200/?${encodeURIComponent(cityKeywords[1])},travel`,
+                `https://source.unsplash.com/300x200/?china,${encodeURIComponent(cityKeywords[2])}`,
+                `https://source.unsplash.com/300x200/?landmark,historic,temple`,
+                `https://source.unsplash.com/300x200/?chinese,architecture,traditional`,
+                `https://picsum.photos/300/200?random=${encodeURIComponent(spot + city + index)}`,
+                `https://images.pexels.com/photos/${1000000 + (index * 100)}/pexels-photo-${1000000 + (index * 100)}.jpeg?auto=compress&cs=tinysrgb&w=300&h=200&fit=crop`
+            ];
+            
+            return imageServices[index % imageServices.length];
+        }
+        
+        // 获取美食图片URL
+        function getFoodImage(food, city, index) {
+            const foodKeyword = foodKeywords[food] || 'chinese,food,delicious';
+            
+            const imageServices = [
+                `https://source.unsplash.com/300x200/?${foodKeyword}`,
+                `https://source.unsplash.com/300x200/?${encodeURIComponent(food)},food`,
+                `https://source.unsplash.com/300x200/?chinese,cuisine,${city}`,
+                `https://source.unsplash.com/300x200/?asian,food,restaurant`,
+                `https://source.unsplash.com/300x200/?traditional,chinese,meal`,
+                `https://picsum.photos/300/200?random=${encodeURIComponent(food + city + index + 'food')}`,
+                `https://foodish-api.herokuapp.com/images/burger/burger${(index % 30) + 1}.jpg`
+            ];
+            
+            return imageServices[index % imageServices.length];
+        }
+        
+        // 创建图片卡片
+        function createImageCard(src, title, type) {
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            
+            const img = document.createElement('img');
+            img.src = src;
+            img.alt = title;
+            img.className = 'loading';
+            
+            const titleEl = document.createElement('h3');
+            titleEl.textContent = title;
+            
+            const statusEl = document.createElement('div');
+            statusEl.className = 'status loading-status';
+            statusEl.textContent = '加载中...';
+            
+            // 图片加载事件
+            img.onload = function() {
+                this.classList.remove('loading');
+                statusEl.className = 'status success';
+                statusEl.textContent = '✅ 加载成功';
+                stats.loading--;
+                stats.success++;
+                updateStats();
+            };
+            
+            img.onerror = function() {
+                this.classList.remove('loading');
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ 加载失败';
+                
+                // 尝试备用图片
+                const fallbacks = type === 'food' ? [
+                    'https://source.unsplash.com/300x200/?food,delicious',
+                    'https://source.unsplash.com/300x200/?chinese,cuisine',
+                    'https://picsum.photos/300/200?random=' + Math.random()
+                ] : [
+                    'https://source.unsplash.com/300x200/?travel,landmark',
+                    'https://source.unsplash.com/300x200/?architecture,building',
+                    'https://picsum.photos/300/200?random=' + Math.random()
+                ];
+                
+                const randomFallback = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+                this.src = randomFallback;
+                this.onerror = function() {
+                    stats.loading--;
+                    stats.error++;
+                    updateStats();
+                };
+            };
+            
+            card.appendChild(img);
+            card.appendChild(titleEl);
+            card.appendChild(statusEl);
+            
+            stats.total++;
+            stats.loading++;
+            
+            return card;
+        }
+        
+        // 更新统计信息
+        function updateStats() {
+            document.getElementById('totalImages').textContent = stats.total;
+            document.getElementById('successCount').textContent = stats.success;
+            document.getElementById('errorCount').textContent = stats.error;
+            document.getElementById('loadingCount').textContent = stats.loading;
+        }
+        
+        // 生成测试图片
+        function generateTestImages() {
+            const attractionGrid = document.getElementById('attractionGrid');
+            const foodGrid = document.getElementById('foodGrid');
+            
+            // 生成景点图片
+            testData.attractions.forEach((city, cityIndex) => {
+                city.spots.forEach((spot, spotIndex) => {
+                    const imageUrl = getAttractionImage(spot, city.city, spotIndex);
+                    const card = createImageCard(imageUrl, `${city.city} - ${spot}`, 'attraction');
+                    attractionGrid.appendChild(card);
+                });
+            });
+            
+            // 生成美食图片
+            testData.foods.forEach((city, cityIndex) => {
+                city.foods.forEach((food, foodIndex) => {
+                    const imageUrl = getFoodImage(food, city.city, foodIndex);
+                    const card = createImageCard(imageUrl, `${city.city} - ${food}`, 'food');
+                    foodGrid.appendChild(card);
+                });
+            });
+            
+            updateStats();
+        }
+        
+        // 页面加载完成后生成测试图片
+        document.addEventListener('DOMContentLoaded', function() {
+            generateTestImages();
+            
+            // 每5秒更新统计
+            setInterval(updateStats, 5000);
+        });
+    </script>
+</body>
+</html> 

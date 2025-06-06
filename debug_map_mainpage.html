@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>主页面地图调试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #2a2a2a;
+        }
+        
+        /* 复制主页面的地图样式 */
+        .map-container {
+            height: 500px;
+            border-radius: 24px;
+            overflow: hidden;
+            position: relative;
+            background: linear-gradient(135deg, rgba(79, 156, 249, 0.1) 0%, rgba(79, 156, 249, 0.0) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .amap-container {
+            border-radius: 24px;
+        }
+        
+        .station-marker {
+            background: rgba(79, 156, 249, 0.9);
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(79, 156, 249, 0.4);
+        }
+        
+        .station-marker:hover {
+            transform: scale(1.5);
+            background: rgba(79, 156, 249, 1);
+            box-shadow: 0 6px 20px rgba(79, 156, 249, 0.6);
+        }
+        
+        .station-marker.major {
+            width: 20px;
+            height: 20px;
+            background: rgba(245, 158, 11, 0.9);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+        }
+        
+        .station-marker.major:hover {
+            background: rgba(245, 158, 11, 1);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
+        }
+        
+        .station-info-window {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 20px;
+            min-width: 280px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .station-number {
+            background: linear-gradient(135deg, #4f9cf9, #8b5cf6);
+            color: white;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .time-badge {
+            background: rgba(79, 156, 249, 0.2);
+            color: #4f9cf9;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .attractions-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .attraction-tag {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .food-tag {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .log {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        button {
+            background: #4f9cf9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #3b82f6;
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>主页面地图加载调试</h1>
+        
+        <div class="test-section">
+            <h3>模拟主页面地图加载流程</h3>
+            <button onclick="testMainPageMapFlow()">测试完整流程</button>
+            <button onclick="testSelectTrainFlow()">测试selectTrain流程</button>
+            <button onclick="testDisplayRouteMap()">测试displayRouteMap</button>
+            <button onclick="testInitRouteMap()">测试initRouteMap</button>
+            <button onclick="clearLog()">清空日志</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>地图容器测试</h3>
+            <div id="route-map" class="map-container">
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
+                    等待地图初始化...
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>调试日志</h3>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // 复制主页面的变量和函数
+        let amapInstance = null;
+        let mapMarkers = [];
+        let mapInfoWindows = [];
+        
+        // 日志记录
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('log');
+            const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
+            logElement.textContent += logEntry;
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            if (type === 'error') {
+                console.error(message);
+            } else if (type === 'warn') {
+                console.warn(message);
+            } else {
+                console.log(message);
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+        
+        // 复制主页面的loadAmapAPI函数
+        function loadAmapAPI() {
+            return new Promise(async (resolve, reject) => {
+                log('开始加载高德地图API...');
+                
+                // 如果已经加载过，直接返回
+                if (window.AMap) {
+                    log('检测到已存在的AMap实例');
+                    resolve(window.AMap);
+                    return;
+                }
+
+                try {
+                    // 从后端获取API密钥
+                    log('获取API配置...');
+                    const response = await fetch('/api/config/map');
+                    const config = await response.json();
+                    
+                    log(`API配置响应: ${JSON.stringify(config)}`);
+                    
+                    if (!config.success || !config.has_key) {
+                        throw new Error('高德地图API密钥未配置');
+                    }
+
+                    // 创建script标签动态加载
+                    const script = document.createElement('script');
+                    script.type = 'text/javascript';
+                    script.src = `https://webapi.amap.com/maps?v=2.0&key=${config.amap_api_key}&plugin=AMap.Scale,AMap.ToolBar,AMap.InfoWindow`;
+                    
+                    log(`添加script标签: ${script.src}`);
+                    
+                    script.onload = () => {
+                        log('高德地图API加载成功 ✅');
+                        resolve(window.AMap);
+                    };
+                    
+                    script.onerror = () => {
+                        log('高德地图API加载失败 ❌', 'error');
+                        reject(new Error('高德地图API加载失败'));
+                    };
+                    
+                    document.head.appendChild(script);
+                } catch (error) {
+                    log(`获取地图配置失败: ${error.message}`, 'error');
+                    reject(error);
+                }
+            });
+        }
+        
+        // 复制主页面的addStationMarker函数
+        function addStationMarker(station, index) {
+            try {
+                log(`添加站点标记: ${station.name} (${station.longitude}, ${station.latitude})`);
+                
+                // 创建自定义标记内容
+                const markerContent = `
+                    <div class="station-marker ${station.is_major ? 'major' : ''}" 
+                         data-sequence="${station.sequence}">
+                        <div style="
+                            position: absolute;
+                            top: -8px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            background: rgba(0,0,0,0.8);
+                            color: white;
+                            padding: 2px 8px;
+                            border-radius: 10px;
+                            font-size: 10px;
+                            font-weight: bold;
+                            white-space: nowrap;
+                            pointer-events: none;
+                            opacity: 0;
+                            transition: all 0.3s ease;
+                        " class="station-label">${station.sequence}</div>
+                    </div>
+                `;
+
+                // 创建标记
+                const marker = new AMap.Marker({
+                    position: [station.longitude, station.latitude],
+                    content: markerContent,
+                    offset: new AMap.Pixel(-10, -10),
+                    zIndex: 100 + index
+                });
+
+                // 创建信息窗口内容
+                const infoContent = createStationInfoContent(station);
+
+                // 创建信息窗口
+                const infoWindow = new AMap.InfoWindow({
+                    content: infoContent,
+                    offset: new AMap.Pixel(0, -30),
+                    closeWhenClickMap: true
+                });
+
+                // 添加点击事件
+                marker.on('click', () => {
+                    // 关闭其他信息窗口
+                    mapInfoWindows.forEach(win => win.close());
+                    
+                    // 打开当前信息窗口
+                    infoWindow.open(amapInstance, marker.getPosition());
+                    
+                    // 地图中心移动到该点
+                    amapInstance.setCenter(marker.getPosition(), true);
+                    
+                    log(`点击站点: ${station.name}`);
+                });
+
+                // 添加鼠标悬停事件
+                marker.on('mouseover', () => {
+                    const label = marker.getContent().querySelector('.station-label');
+                    if (label) {
+                        label.style.opacity = '1';
+                    }
+                });
+
+                marker.on('mouseout', () => {
+                    const label = marker.getContent().querySelector('.station-label');
+                    if (label) {
+                        label.style.opacity = '0';
+                    }
+                });
+
+                // 添加到地图
+                amapInstance.add(marker);
+                mapMarkers.push(marker);
+                mapInfoWindows.push(infoWindow);
+                
+                log(`站点标记添加成功: ${station.name}`);
+
+            } catch (error) {
+                log(`添加站点标记失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 复制主页面的createStationInfoContent函数
+        function createStationInfoContent(station) {
+            const attractionTags = station.attractions?.map(attraction => 
+                `<span class="attraction-tag">${attraction}</span>`
+            ).join('') || '';
+
+            const foodTags = station.local_food?.map(food => 
+                `<span class="food-tag">${food}</span>`
+            ).join('') || '';
+
+            return `
+                <div class="station-info-window">
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                        <div class="station-number">${station.sequence}</div>
+                        <div style="margin-left: 12px;">
+                            <h4 style="margin: 0; font-size: 16px; font-weight: bold; color: white;">
+                                ${station.name}
+                            </h4>
+                            <p style="margin: 4px 0 0 0; font-size: 12px; color: #94a3b8;">
+                                ${station.city}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                        <div>
+                            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">到达时间</div>
+                            <div class="time-badge">${station.arrival_time || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">发车时间</div>
+                            <div class="time-badge">${station.departure_time || 'N/A'}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px;">
+                        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">停车时长</div>
+                        <div style="color: #f59e0b; font-weight: 600; font-size: 12px;">${station.stop_duration || 'N/A'}</div>
+                    </div>
+                    
+                    ${attractionTags ? `
+                        <div style="margin-bottom: 8px;">
+                            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">景点推荐</div>
+                            <div class="attractions-list">${attractionTags}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${foodTags ? `
+                        <div>
+                            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">特色美食</div>
+                            <div class="attractions-list">${foodTags}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        // 复制主页面的initRouteMap函数
+        async function initRouteMap(stationsData) {
+            try {
+                log('=== 开始初始化地图 ===');
+                
+                // 先加载高德地图API
+                await loadAmapAPI();
+                
+                if (!window.AMap) {
+                    log('高德地图API未加载，跳过地图初始化', 'warn');
+                    return;
+                }
+
+                log('AMap API已加载，继续初始化...');
+
+                // 清理之前的地图实例
+                if (amapInstance) {
+                    log('清理之前的地图实例');
+                    amapInstance.destroy();
+                    mapMarkers = [];
+                    mapInfoWindows = [];
+                }
+
+                const mapContainer = document.getElementById('route-map');
+                if (!mapContainer) {
+                    log('找不到地图容器元素 #route-map', 'error');
+                    return;
+                }
+
+                log('地图容器元素存在，继续初始化...');
+
+                // 计算地图中心点
+                const stations = stationsData.stations || [];
+                if (stations.length === 0) {
+                    log('站点数据为空', 'warn');
+                    return;
+                }
+
+                log(`站点数量: ${stations.length}`);
+
+                const centerLat = stations.reduce((sum, station) => sum + station.latitude, 0) / stations.length;
+                const centerLng = stations.reduce((sum, station) => sum + station.longitude, 0) / stations.length;
+
+                log(`地图中心点: [${centerLng}, ${centerLat}]`);
+
+                // 创建地图实例
+                amapInstance = new AMap.Map('route-map', {
+                    zoom: 6,
+                    center: [centerLng, centerLat],
+                    mapStyle: 'amap://styles/dark',
+                    features: ['bg', 'road', 'building'],
+                    viewMode: '2D'
+                });
+
+                log('地图实例创建成功');
+
+                // 添加控件
+                amapInstance.addControl(new AMap.Scale());
+                amapInstance.addControl(new AMap.ToolBar({
+                    visible: true,
+                    onlyVisible: false,
+                    liteStyle: true
+                }));
+
+                log('地图控件添加完成');
+
+                // 创建路线折线点
+                const linePoints = stations.map(station => [station.longitude, station.latitude]);
+
+                // 绘制路线
+                const polyline = new AMap.Polyline({
+                    path: linePoints,
+                    strokeColor: '#4f9cf9',
+                    strokeWeight: 4,
+                    strokeOpacity: 0.8,
+                    strokeStyle: 'solid',
+                    lineJoin: 'round',
+                    lineCap: 'round'
+                });
+                amapInstance.add(polyline);
+
+                log('路线折线绘制完成');
+
+                // 添加站点标记
+                stations.forEach((station, index) => {
+                    addStationMarker(station, index);
+                });
+
+                log('所有站点标记添加完成');
+
+                // 自适应显示所有标记
+                amapInstance.setFitView(mapMarkers, false, [50, 50, 50, 50]);
+
+                log('地图视角自适应完成 ✅');
+                log('=== 地图初始化完成 ===');
+
+            } catch (error) {
+                log(`地图初始化失败: ${error.message}`, 'error');
+                console.error('地图初始化失败:', error);
+                
+                // 显示地图加载失败的提示
+                const mapContainer = document.getElementById('route-map');
+                if (mapContainer) {
+                    mapContainer.innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ff6b6b; text-align: center;">
+                            <div>
+                                <i class="fas fa-map-marked-alt" style="font-size: 48px; margin-bottom: 16px;"></i>
+                                <p>地图服务暂时不可用</p>
+                                <p style="font-size: 14px; opacity: 0.7; margin-top: 8px;">错误: ${error.message}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        // 测试数据
+        const testStationsData = {
+            train_info: {
+                train_no: "G101",
+                total_distance: "1318公里",
+                total_time: "4小时28分"
+            },
+            stations: [
+                {
+                    sequence: 1,
+                    name: "北京南",
+                    city: "北京",
+                    latitude: 39.865,
+                    longitude: 116.378,
+                    arrival_time: "--",
+                    departure_time: "08:00",
+                    stop_duration: "起点站",
+                    is_major: true,
+                    attractions: ["天安门广场", "故宫"],
+                    local_food: ["烤鸭", "炸酱面"]
+                },
+                {
+                    sequence: 2,
+                    name: "天津南",
+                    city: "天津",
+                    latitude: 39.088,
+                    longitude: 117.186,
+                    arrival_time: "08:35",
+                    departure_time: "08:37",
+                    stop_duration: "2分钟",
+                    is_major: false,
+                    attractions: ["天津之眼", "古文化街"],
+                    local_food: ["狗不理包子", "麻花"]
+                },
+                {
+                    sequence: 3,
+                    name: "济南西",
+                    city: "济南",
+                    latitude: 36.651,
+                    longitude: 117.121,
+                    arrival_time: "10:13",
+                    departure_time: "10:15",
+                    stop_duration: "2分钟",
+                    is_major: false,
+                    attractions: ["大明湖", "趵突泉"],
+                    local_food: ["把子肉", "甜沫"]
+                },
+                {
+                    sequence: 4,
+                    name: "南京南",
+                    city: "南京",
+                    latitude: 31.946,
+                    longitude: 118.713,
+                    arrival_time: "11:47",
+                    departure_time: "11:49",
+                    stop_duration: "2分钟",
+                    is_major: true,
+                    attractions: ["中山陵", "秦淮河"],
+                    local_food: ["盐水鸭", "汤包"]
+                },
+                {
+                    sequence: 5,
+                    name: "上海虹桥",
+                    city: "上海",
+                    latitude: 31.196,
+                    longitude: 121.315,
+                    arrival_time: "12:28",
+                    departure_time: "--",
+                    stop_duration: "终点站",
+                    is_major: true,
+                    attractions: ["外滩", "东方明珠"],
+                    local_food: ["小笼包", "生煎包"]
+                }
+            ]
+        };
+        
+        // 测试函数
+        async function testInitRouteMap() {
+            log('=== 测试initRouteMap函数 ===');
+            await initRouteMap(testStationsData);
+        }
+        
+        async function testDisplayRouteMap() {
+            log('=== 测试displayRouteMap流程 ===');
+            
+            // 模拟插入地图容器到页面
+            const mapContainer = document.createElement('div');
+            mapContainer.innerHTML = `
+                <div id="route-map" class="map-container">
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
+                        正在加载地图...
+                    </div>
+                </div>
+            `;
+            
+            // 替换现有的地图容器
+            const existingMap = document.getElementById('route-map');
+            if (existingMap) {
+                existingMap.parentNode.replaceChild(mapContainer.firstElementChild, existingMap);
+            }
+            
+            // 延迟初始化地图，模拟主页面的行为
+            setTimeout(async () => {
+                await initRouteMap(testStationsData);
+            }, 100);
+        }
+        
+        async function testSelectTrainFlow() {
+            log('=== 测试selectTrain流程 ===');
+            
+            // 模拟selectTrain中的地图相关代码
+            try {
+                // 模拟获取站点数据的响应
+                const mockStationsResult = {
+                    success: true,
+                    data: testStationsData
+                };
+                
+                log('模拟站点数据获取成功');
+                
+                if (mockStationsResult.success) {
+                    // 存储站点数据
+                    const stationsData = mockStationsResult.data;
+                    
+                    // 调用displayRouteMap
+                    await testDisplayRouteMap();
+                    
+                } else {
+                    throw new Error('获取站点数据失败');
+                }
+                
+            } catch (error) {
+                log(`selectTrain流程测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testMainPageMapFlow() {
+            log('=== 测试完整主页面地图流程 ===');
+            clearLog();
+            
+            log('1. 开始完整流程测试');
+            log('2. 检查DOM元素');
+            
+            const mapContainer = document.getElementById('route-map');
+            if (!mapContainer) {
+                log('地图容器不存在！', 'error');
+                return;
+            }
+            
+            log('3. 地图容器存在，开始测试API加载');
+            
+            try {
+                await loadAmapAPI();
+                log('4. API加载完成，开始测试地图初始化');
+                
+                await initRouteMap(testStationsData);
+                log('5. 完整流程测试完成 ✅');
+                
+            } catch (error) {
+                log(`完整流程测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 页面加载完成后自动开始测试
+        document.addEventListener('DOMContentLoaded', () => {
+            log('页面加载完成，调试环境就绪');
+            log('点击上方按钮开始测试不同的流程');
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>火车沿途风景 | Journey Along the Rails</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom Styles -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+        
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        :root {
+            --blue-glow: #4f9cf9;
+            --purple-glow: #8b5cf6;
+            --green-glow: #10b981;
+            --orange-glow: #f59e0b;
+            --pink-glow: #ec4899;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            overflow-x: hidden;
+        }
+        
+        /* Bento Grid System */
+        .bento-container {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            grid-auto-rows: minmax(120px, auto);
+            gap: 24px;
+            padding: 24px;
+        }
+        
+        .bento-item {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 32px;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        
+        .bento-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        }
+        
+        .bento-item:hover {
+            transform: translateY(-8px) scale(1.02);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Grid Sizes */
+        .span-full { grid-column: 1 / -1; }
+        .span-6 { grid-column: span 6; }
+        .span-4 { grid-column: span 4; }
+        .span-3 { grid-column: span 3; }
+        .span-8 { grid-column: span 8; }
+        
+        /* Typography */
+        .hero-number {
+            font-size: clamp(8rem, 20vw, 24rem);
+            font-weight: 900;
+            line-height: 0.8;
+            letter-spacing: -0.05em;
+            background: linear-gradient(135deg, #ffffff 0%, #4f9cf9 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .mega-title {
+            font-size: clamp(4rem, 12vw, 8rem);
+            font-weight: 800;
+            line-height: 0.85;
+            letter-spacing: -0.03em;
+        }
+        
+        .section-number {
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 900;
+            line-height: 1;
+            opacity: 0.1;
+            position: absolute;
+            top: 16px;
+            right: 24px;
+        }
+        
+        /* Glow Effects */
+        .glow-blue {
+            box-shadow: 0 0 60px rgba(79, 156, 249, 0.3);
+            border-color: rgba(79, 156, 249, 0.2);
+        }
+        
+        .glow-purple {
+            box-shadow: 0 0 60px rgba(139, 92, 246, 0.3);
+            border-color: rgba(139, 92, 246, 0.2);
+        }
+        
+        .glow-green {
+            box-shadow: 0 0 60px rgba(16, 185, 129, 0.3);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+        
+        .glow-orange {
+            box-shadow: 0 0 60px rgba(245, 158, 11, 0.3);
+            border-color: rgba(245, 158, 11, 0.2);
+        }
+        
+        /* Gradient Backgrounds */
+        .bg-blue-gradient {
+            background: linear-gradient(135deg, rgba(79, 156, 249, 0.1) 0%, rgba(79, 156, 249, 0.0) 100%);
+        }
+        
+        .bg-purple-gradient {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.0) 100%);
+        }
+        
+        .bg-green-gradient {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.0) 100%);
+        }
+        
+        .bg-orange-gradient {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.0) 100%);
+        }
+        
+        /* Apple-style Animations */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(60px);
+            transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        
+        .scroll-reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .parallax-slow {
+            transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        
+        /* Line Graphics */
+        .line-graphic {
+            position: relative;
+        }
+        
+        .line-graphic::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--blue-glow), transparent);
+            border-radius: 2px;
+        }
+        
+        /* Train Cards */
+        .train-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            padding: 24px;
+            margin: 16px 0;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            position: relative;
+        }
+        
+        .train-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateX(12px) scale(1.02);
+            border-color: rgba(79, 156, 249, 0.3);
+            box-shadow: 0 20px 60px rgba(79, 156, 249, 0.2);
+        }
+        
+        /* Stats Cards */
+        .stat-card {
+            text-align: center;
+            padding: 32px 24px;
+        }
+        
+        .stat-number {
+            font-size: 4rem;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        /* Loading Animation */
+        .loading-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+        
+        .loading-dots span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4f9cf9;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .loading-dots span:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+        
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+        
+        @keyframes pulse {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .bento-container {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                padding: 16px;
+            }
+            
+            .span-6, .span-4, .span-3, .span-8 {
+                grid-column: 1;
+            }
+        }
+        
+        /* Image Loading Animation */
+        .loading-animation {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        .image-loaded {
+            animation: none;
+            background: none;
+        }
+        
+        /* Image Error Placeholder */
+        .image-error {
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        .image-error::before {
+            content: '🖼️';
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        /* Map Styles */
+        .map-container {
+            height: 500px;
+            border-radius: 24px;
+            overflow: hidden;
+            position: relative;
+            background: linear-gradient(135deg, rgba(79, 156, 249, 0.1) 0%, rgba(79, 156, 249, 0.0) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .amap-container {
+            border-radius: 24px;
+        }
+        
+        .station-marker {
+            background: rgba(79, 156, 249, 0.9);
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(79, 156, 249, 0.4);
+        }
+        
+        .station-marker:hover {
+            transform: scale(1.5);
+            background: rgba(79, 156, 249, 1);
+            box-shadow: 0 6px 20px rgba(79, 156, 249, 0.6);
+        }
+        
+        .station-marker.major {
+            width: 20px;
+            height: 20px;
+            background: rgba(245, 158, 11, 0.9);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+        }
+        
+        .station-marker.major:hover {
+            background: rgba(245, 158, 11, 1);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
+        }
+        
+        .station-info-window {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 20px;
+            min-width: 280px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .station-number {
+            background: linear-gradient(135deg, #4f9cf9, #8b5cf6);
+            color: white;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .time-badge {
+            background: rgba(79, 156, 249, 0.2);
+            color: #4f9cf9;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .attractions-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .attraction-tag {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .food-tag {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="min-h-screen flex items-center justify-center relative">
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-purple-900/10 to-green-900/10"></div>
+        
+        <div class="bento-container max-w-7xl mx-auto relative z-10">
+            <!-- Main Hero Card -->
+            <div class="bento-item span-full bg-blue-gradient glow-blue" style="grid-row: span 4;">
+                <div class="section-number">01</div>
+                <div class="text-center">
+                    <div class="hero-number mb-8">火车</div>
+                    <h1 class="mega-title text-white mb-6 line-graphic">
+                        沿途风景
+                    </h1>
+                    <p class="text-2xl text-blue-200 font-light mb-4">Journey Along the Rails</p>
+                    <p class="text-lg text-white/70 max-w-2xl mx-auto">
+                        探索每一站的美景与美食，让旅途成为最美好的回忆
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="bento-item span-3 bg-purple-gradient glow-purple stat-card">
+                <div class="stat-number text-purple-400">1000+</div>
+                <div class="stat-label text-purple-200">Routes</div>
+                <p class="text-sm text-white/60 mt-2">精选路线</p>
+            </div>
+            
+            <div class="bento-item span-3 bg-green-gradient glow-green stat-card">
+                <div class="stat-number text-green-400">500+</div>
+                <div class="stat-label text-green-200">Destinations</div>
+                <p class="text-sm text-white/60 mt-2">目的地</p>
+            </div>
+            
+            <div class="bento-item span-3 bg-orange-gradient glow-orange stat-card">
+                <div class="stat-number text-orange-400">10K+</div>
+                <div class="stat-label text-orange-200">Attractions</div>
+                <p class="text-sm text-white/60 mt-2">景点推荐</p>
+            </div>
+            
+            <div class="bento-item span-3 bg-pink-500/10 stat-card" style="border-color: rgba(236, 72, 153, 0.2); box-shadow: 0 0 60px rgba(236, 72, 153, 0.3);">
+                <div class="stat-number text-pink-400">24/7</div>
+                <div class="stat-label text-pink-200">Service</div>
+                <p class="text-sm text-white/60 mt-2">全天服务</p>
+            </div>
+            
+            <!-- Search Form -->
+            <div class="bento-item span-8 bg-blue-gradient glow-blue" style="grid-row: span 3;">
+                <div class="section-number">02</div>
+                <div class="mb-8">
+                    <h2 class="text-4xl font-bold text-white mb-2 line-graphic">开始旅程</h2>
+                    <p class="text-blue-200">Start Your Journey</p>
+                </div>
+                
+                <form id="searchForm" class="space-y-6">
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-3 text-blue-200 flex items-center">
+                                <i class="fas fa-map-marker-alt mr-2 text-blue-400"></i>
+                                出发地 <span class="text-xs ml-2 opacity-60">FROM</span>
+                            </label>
+                            <input type="text" id="origin" name="origin" required 
+                                   class="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-blue-200/60 focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-transparent transition-all duration-300"
+                                   placeholder="北京">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-3 text-blue-200 flex items-center">
+                                <i class="fas fa-flag-checkered mr-2 text-blue-400"></i>
+                                目的地 <span class="text-xs ml-2 opacity-60">TO</span>
+                            </label>
+                            <input type="text" id="destination" name="destination" required 
+                                   class="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-blue-200/60 focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-transparent transition-all duration-300"
+                                   placeholder="上海">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-3 text-blue-200 flex items-center">
+                                <i class="fas fa-calendar-alt mr-2 text-blue-400"></i>
+                                日期 <span class="text-xs ml-2 opacity-60">DATE</span>
+                            </label>
+                            <input type="date" id="departureDate" name="departureDate" required 
+                                   class="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-transparent transition-all duration-300">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" 
+                            class="w-full bg-gradient-to-r from-blue-500/80 to-purple-600/80 hover:from-blue-500 hover:to-purple-600 text-white font-semibold py-4 px-8 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-blue-300/50 flex items-center justify-center gap-3">
+                        <i class="fas fa-search text-lg"></i>
+                        <span class="text-lg">搜索车次</span>
+                        <span class="text-sm opacity-70">SEARCH TRAINS</span>
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Feature Card -->
+            <div class="bento-item span-4 bg-green-gradient glow-green" style="grid-row: span 3;">
+                <div class="section-number">03</div>
+                <div class="h-full flex flex-col justify-between">
+                    <div>
+                        <i class="fas fa-route text-4xl text-green-400 mb-6"></i>
+                        <h3 class="text-2xl font-bold text-white mb-3 line-graphic">智能路线</h3>
+                        <p class="text-green-200 mb-2">Smart Route Planning</p>
+                        <p class="text-white/70">AI推荐最佳路线和沿途景点</p>
+                    </div>
+                    <div class="mt-8">
+                        <canvas id="routeChart" width="200" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Train Selection Section -->
+    <section id="trainSection" class="py-20 hidden">
+        <div class="bento-container max-w-7xl mx-auto">
+            <div class="bento-item span-full bg-purple-gradient glow-purple text-center" style="grid-row: span 2;">
+                <div class="section-number">04</div>
+                <h2 class="mega-title text-white mb-4">车次选择</h2>
+                <p class="text-xl text-purple-200">Train Selection</p>
+                <p class="text-white/70 mt-4">选择最适合您的列车班次</p>
+            </div>
+            
+            <div id="trainResults" class="span-full">
+                <!-- Train cards will be inserted here -->
+            </div>
+        </div>
+    </section>
+    
+    <!-- Route Information Section -->
+    <section id="routeSection" class="py-20 hidden">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="mega-title text-white mb-4">沿途发现</h2>
+                <p class="text-xl text-blue-200">Scenic Discoveries</p>
+                <div class="w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mt-6 rounded-full"></div>
+            </div>
+            
+            <div id="routeResults">
+                <!-- Route information will be inserted here -->
+            </div>
+        </div>
+    </section>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-lg flex items-center justify-center z-50 hidden">
+        <div class="text-center">
+            <div class="loading-dots mb-6">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <h3 class="text-2xl font-semibold text-white mb-2">正在搜索</h3>
+            <p class="text-blue-200">Searching for the best routes...</p>
+        </div>
+    </div>
+    
+    <script>
+        // 全局变量
+        let selectedTrain = null;
+        let routeChart = null;
+        let routeMap = null;
+        let stationsData = null;
+        
+        // 高德地图实例
+        let amapInstance = null;
+        let mapMarkers = [];
+        let mapInfoWindows = [];
+
+        // 动态加载高德地图API
+        function loadAmapAPI() {
+            return new Promise(async (resolve, reject) => {
+                // 如果已经加载过，直接返回
+                if (window.AMap) {
+                    resolve(window.AMap);
+                    return;
+                }
+
+                try {
+                    // 从后端获取API密钥
+                    const response = await fetch('/api/config/map');
+                    const config = await response.json();
+                    
+                    if (!config.success || !config.has_key) {
+                        throw new Error('高德地图API密钥未配置');
+                    }
+
+                    // 创建script标签动态加载
+                    const script = document.createElement('script');
+                    script.type = 'text/javascript';
+                    script.src = `https://webapi.amap.com/maps?v=2.0&key=${config.amap_api_key}&plugin=AMap.Scale,AMap.ToolBar,AMap.InfoWindow`;
+                    
+                    script.onload = () => {
+                        console.log('高德地图API加载成功');
+                        resolve(window.AMap);
+                    };
+                    
+                    script.onerror = () => {
+                        console.warn('高德地图API加载失败');
+                        reject(new Error('高德地图API加载失败'));
+                    };
+                    
+                    document.head.appendChild(script);
+                } catch (error) {
+                    console.error('获取地图配置失败:', error);
+                    reject(error);
+                }
+            });
+        }
+
+        // 初始化高德地图
+        async function initRouteMap(stationsData) {
+            try {
+                // 先加载高德地图API
+                await loadAmapAPI();
+                
+                if (!window.AMap) {
+                    console.warn('高德地图API未加载，跳过地图初始化');
+                    return;
+                }
+
+                // 清理之前的地图实例
+                if (amapInstance) {
+                    amapInstance.destroy();
+                    mapMarkers = [];
+                    mapInfoWindows = [];
+                }
+
+                const mapContainer = document.getElementById('route-map');
+                if (!mapContainer) return;
+
+                // 计算地图中心点
+                const stations = stationsData.stations || [];
+                if (stations.length === 0) return;
+
+                const centerLat = stations.reduce((sum, station) => sum + station.latitude, 0) / stations.length;
+                const centerLng = stations.reduce((sum, station) => sum + station.longitude, 0) / stations.length;
+
+                // 创建地图实例
+                amapInstance = new AMap.Map('route-map', {
+                    zoom: 6,
+                    center: [centerLng, centerLat],
+                    mapStyle: 'amap://styles/dark',
+                    features: ['bg', 'road', 'building'],
+                    viewMode: '2D'
+                });
+
+                // 添加控件
+                amapInstance.addControl(new AMap.Scale());
+                amapInstance.addControl(new AMap.ToolBar({
+                    visible: true,
+                    onlyVisible: false,
+                    liteStyle: true
+                }));
+
+                // 创建路线折线点
+                const linePoints = stations.map(station => [station.longitude, station.latitude]);
+
+                // 绘制路线
+                const polyline = new AMap.Polyline({
+                    path: linePoints,
+                    strokeColor: '#4f9cf9',
+                    strokeWeight: 4,
+                    strokeOpacity: 0.8,
+                    strokeStyle: 'solid',
+                    lineJoin: 'round',
+                    lineCap: 'round'
+                });
+                amapInstance.add(polyline);
+
+                // 添加站点标记
+                stations.forEach((station, index) => {
+                    addStationMarker(station, index);
+                });
+
+                // 自适应显示所有标记
+                amapInstance.setFitView(mapMarkers, false, [50, 50, 50, 50]);
+
+            } catch (error) {
+                console.error('地图初始化失败:', error);
+                // 显示地图加载失败的提示
+                const mapContainer = document.getElementById('route-map');
+                if (mapContainer) {
+                    mapContainer.innerHTML = `
+                        <div class="flex items-center justify-center h-full bg-gray-800/50 rounded-2xl">
+                            <div class="text-center">
+                                <i class="fas fa-map-marked-alt text-gray-400 text-4xl mb-4"></i>
+                                <p class="text-gray-300">地图服务暂时不可用</p>
+                                <p class="text-gray-500 text-sm mt-2">请检查网络连接或联系管理员</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // 添加站点标记
+        function addStationMarker(station, index) {
+            try {
+                // 创建简化的标记内容
+                const markerContent = `
+                    <div class="station-marker ${station.is_major ? 'major' : ''}" 
+                         data-sequence="${station.sequence}"
+                         title="${station.name}">
+                    </div>
+                `;
+
+                // 创建标记
+                const marker = new AMap.Marker({
+                    position: [station.longitude, station.latitude],
+                    content: markerContent,
+                    offset: new AMap.Pixel(-10, -10),
+                    zIndex: 100 + index
+                });
+
+                // 创建信息窗口内容
+                const infoContent = createStationInfoContent(station);
+
+                // 创建信息窗口
+                const infoWindow = new AMap.InfoWindow({
+                    content: infoContent,
+                    offset: new AMap.Pixel(0, -30),
+                    closeWhenClickMap: true
+                });
+
+                // 添加点击事件
+                marker.on('click', () => {
+                    // 关闭其他信息窗口
+                    mapInfoWindows.forEach(win => win.close());
+                    
+                    // 打开当前信息窗口
+                    infoWindow.open(amapInstance, marker.getPosition());
+                    
+                    // 地图中心移动到该点
+                    amapInstance.setCenter(marker.getPosition(), true);
+                });
+
+                // 添加到地图
+                amapInstance.add(marker);
+                mapMarkers.push(marker);
+                mapInfoWindows.push(infoWindow);
+
+            } catch (error) {
+                console.error('添加站点标记失败:', error);
+            }
+        }
+
+        // 创建站点信息窗口内容
+        function createStationInfoContent(station) {
+            const attractionTags = station.attractions?.map(attraction => 
+                `<span class="attraction-tag">${attraction}</span>`
+            ).join('') || '';
+
+            const foodTags = station.local_food?.map(food => 
+                `<span class="food-tag">${food}</span>`
+            ).join('') || '';
+
+            return `
+                <div class="station-info-window">
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                        <div class="station-number">${station.sequence}</div>
+                        <div style="margin-left: 12px;">
+                            <h4 style="margin: 0; font-size: 16px; font-weight: bold; color: white;">
+                                ${station.name}
+                            </h4>
+                            <p style="margin: 4px 0 0 0; font-size: 12px; color: #94a3b8;">
+                                ${station.city}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                        <div>
+                            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">到达时间</div>
+                            <div class="time-badge">${station.arrival_time}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">发车时间</div>
+                            <div class="time-badge">${station.departure_time}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px;">
+                        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">停车时长</div>
+                        <div style="color: #f59e0b; font-weight: 600; font-size: 12px;">${station.stop_duration}</div>
+                    </div>
+                    
+                    ${attractionTags ? `
+                        <div style="margin-bottom: 8px;">
+                            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">景点推荐</div>
+                            <div class="attractions-list">${attractionTags}</div>
+                        </div>
+                    ` : ''}
+                    
+                    ${foodTags ? `
+                        <div>
+                            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">特色美食</div>
+                            <div class="attractions-list">${foodTags}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Initialize
+        document.getElementById('departureDate').valueAsDate = new Date();
+        
+        // Scroll Reveal Animation
+        function initScrollReveal() {
+            const reveals = document.querySelectorAll('.scroll-reveal');
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('revealed');
+                    }
+                });
+            }, { threshold: 0.1 });
+            
+            reveals.forEach(el => observer.observe(el));
+        }
+        
+        // Parallax Effect
+        function initParallax() {
+            window.addEventListener('scroll', () => {
+                const scrolled = window.pageYOffset;
+                const parallaxElements = document.querySelectorAll('.parallax-slow');
+                
+                parallaxElements.forEach(el => {
+                    const speed = 0.5;
+                    el.style.transform = `translateY(${scrolled * speed}px)`;
+                });
+            });
+        }
+        
+        // Route Chart
+        function initRouteChart() {
+            const ctx = document.getElementById('routeChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['起点', '中转1', '中转2', '终点'],
+                    datasets: [{
+                        label: '路线',
+                        data: [0, 30, 60, 100],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: false
+                        },
+                        y: {
+                            display: false
+                        }
+                    },
+                    elements: {
+                        point: {
+                            hoverRadius: 8
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Form submission
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const origin = document.getElementById('origin').value;
+            const destination = document.getElementById('destination').value;
+            const departureDate = document.getElementById('departureDate').value;
+            
+            if (!origin || !destination || !departureDate) {
+                alert('请填写完整的行程信息');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/search-trains', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        origin: origin,
+                        destination: destination,
+                        departure_date: departureDate
+                    })
+                });
+                
+                const data = await response.json();
+                displayTrains(data.trains);
+                
+                document.getElementById('trainSection').scrollIntoView({ 
+                    behavior: 'smooth' 
+                });
+                
+            } catch (error) {
+                console.error('搜索失败:', error);
+                alert('搜索失败，请稍后重试');
+            } finally {
+                hideLoading();
+            }
+        });
+        
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+        
+        function displayTrains(trains) {
+            const trainResults = document.getElementById('trainResults');
+            const trainSection = document.getElementById('trainSection');
+            
+            trainResults.innerHTML = '';
+            
+            trains.forEach((train, index) => {
+                const trainCard = document.createElement('div');
+                trainCard.className = 'train-card scroll-reveal';
+                trainCard.style.animationDelay = `${index * 0.1}s`;
+                trainCard.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center space-x-8">
+                            <div class="text-center">
+                                <div class="text-3xl font-black text-blue-400 mb-1">${train.train_number}</div>
+                                <div class="text-sm text-blue-200 uppercase tracking-wider">${train.train_type}</div>
+                            </div>
+                            <div class="flex items-center space-x-6">
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-white">${train.departure_time}</div>
+                                    <div class="text-sm text-white/60 uppercase">DEPARTURE</div>
+                                </div>
+                                <div class="flex items-center text-blue-400">
+                                    <div class="w-12 h-0.5 bg-blue-400"></div>
+                                    <i class="fas fa-train mx-3 text-xl"></i>
+                                    <span class="text-sm font-mono">${train.duration}</span>
+                                    <i class="fas fa-train mx-3 text-xl"></i>
+                                    <div class="w-12 h-0.5 bg-blue-400"></div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-white">${train.arrival_time}</div>
+                                    <div class="text-sm text-white/60 uppercase">ARRIVAL</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-3xl font-black text-green-400">${train.price}</div>
+                            <div class="text-sm text-green-200 uppercase">FROM</div>
+                        </div>
+                    </div>
+                `;
+                
+                trainCard.addEventListener('click', () => selectTrain(train));
+                trainResults.appendChild(trainCard);
+            });
+            
+            trainSection.classList.remove('hidden');
+            initScrollReveal();
+        }
+        
+        async function selectTrain(train) {
+            selectedTrain = train;
+            
+            // 清理之前的地图实例和相关数据
+            if (amapInstance) {
+                console.log('清理之前的地图实例');
+                amapInstance.destroy();
+                amapInstance = null;
+                mapMarkers = [];
+                mapInfoWindows = [];
+            }
+            
+            const searchForm = document.getElementById('searchForm');
+            const routeSection = document.getElementById('routeSection');
+            const routeResults = document.getElementById('routeResults');
+            
+            // 显示加载状态
+            routeResults.innerHTML = `
+                <div class="bento-container">
+                    <div class="bento-item span-full text-center py-32">
+                        <div class="inline-flex items-center space-x-4">
+                            <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent"></div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-white mb-2">正在查询路线信息...</h3>
+                                <p class="text-blue-200">AI正在为您规划最佳旅行路线</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            routeSection.classList.remove('hidden');
+            
+            try {
+                const formData = new FormData(searchForm);
+                
+                console.log('发送请求数据:', {
+                    train_number: train.train_number,
+                    origin: formData.get('origin'),
+                    destination: formData.get('destination')
+                });
+                
+                console.log('开始获取路线信息...');
+                
+                // 获取路线风景信息
+                const routeResponse = await fetch('/api/get-route-info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        train_number: train.train_number,
+                        origin: formData.get('origin'),
+                        destination: formData.get('destination')
+                    })
+                });
+                
+                if (!routeResponse.ok) {
+                    throw new Error(`路线信息请求失败: ${routeResponse.status}`);
+                }
+                
+                const routeResult = await routeResponse.json();
+                console.log('路线信息获取完成:', routeResult.success);
+                
+                console.log('开始获取站点信息...');
+                
+                // 获取站点信息（用于地图显示）
+                const stationsResponse = await fetch('/api/get-route-stations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        train_number: train.train_number,
+                        origin: formData.get('origin'),
+                        destination: formData.get('destination')
+                    })
+                });
+                
+                if (!stationsResponse.ok) {
+                    throw new Error(`站点信息请求失败: ${stationsResponse.status}`);
+                }
+                
+                const stationsResult = await stationsResponse.json();
+                console.log('站点信息获取完成:', stationsResult.success);
+                
+                if (routeResult.success && stationsResult.success) {
+                    // 存储站点数据
+                    stationsData = stationsResult.data;
+                    
+                    console.log('开始显示内容...');
+                    
+                    // 先显示地图容器，再显示路线结果
+                    // 这样确保地图在顶部，路线详情在下方
+                    await displayRouteMap(stationsData);
+                    console.log('地图显示完成');
+                    
+                    displayRouteResults(routeResult.data, train);
+                    console.log('路线结果显示完成');
+                    
+                    console.log('=== selectTrain 全部完成 ===');
+                } else {
+                    throw new Error(routeResult.message || stationsResult.message || '获取数据失败');
+                }
+                
+            } catch (error) {
+                console.error('selectTrain执行失败:', error);
+                routeResults.innerHTML = `
+                    <div class="bento-container">
+                        <div class="bento-item span-full text-center py-32">
+                            <div class="text-red-400 mb-4">
+                                <i class="fas fa-exclamation-triangle text-6xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-white mb-2">获取路线信息失败</h3>
+                            <p class="text-red-200">${error.message}</p>
+                            <button onclick="location.reload()" 
+                                    class="mt-6 px-8 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-colors">
+                                重试
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // 显示路线地图
+        async function displayRouteMap(stationsData) {
+            const routeResults = document.getElementById('routeResults');
+            
+            // 清理之前可能存在的地图容器
+            const existingMapContainer = document.querySelector('#route-results-map-container');
+            if (existingMapContainer) {
+                existingMapContainer.remove();
+            }
+            
+            // 在路线结果开头插入地图容器
+            const mapContainer = document.createElement('div');
+            mapContainer.id = 'route-results-map-container';
+            mapContainer.className = 'bento-container';
+            mapContainer.innerHTML = `
+                <div class="bento-item span-full bg-blue-gradient glow-blue scroll-reveal">
+                    <div class="section-number text-blue-500/20">01</div>
+                    <h4 class="text-4xl font-bold text-white mb-8 flex items-center line-graphic">
+                        <i class="fas fa-map-marked-alt text-blue-400 mr-4 text-3xl"></i>
+                        行程路线
+                        <span class="text-xl text-blue-300 ml-4 font-normal">Route Map</span>
+                    </h4>
+                    
+                    <div class="mb-6">
+                        <div class="grid md:grid-cols-3 gap-6 mb-6">
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-blue-400">${stationsData.train_info?.train_no || 'N/A'}</div>
+                                <div class="text-blue-200">车次</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-green-400">${stationsData.train_info?.total_distance || 'N/A'}</div>
+                                <div class="text-green-200">总里程</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-orange-400">${stationsData.train_info?.total_time || 'N/A'}</div>
+                                <div class="text-orange-200">总时长</div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-black/20 rounded-2xl p-4 mb-4">
+                            <p class="text-white/80 text-center">
+                                <i class="fas fa-info-circle text-blue-400 mr-2"></i>
+                                点击地图上的站点标记查看详细信息，包括到达时间、停车时长和周边景点
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div id="route-map" class="map-container">
+                        <div class="flex items-center justify-center h-full">
+                            <div class="text-center">
+                                <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+                                <p class="text-white/80">正在加载地图...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 将地图容器插入到结果的开头
+            routeResults.appendChild(mapContainer);
+            
+            // 添加调试日志
+            console.log('地图容器已插入DOM，开始初始化地图...');
+            console.log('站点数据:', stationsData);
+            
+            // 延迟初始化地图，确保DOM元素已渲染
+            setTimeout(async () => {
+                try {
+                    console.log('开始调用initRouteMap...');
+                    await initRouteMap(stationsData);
+                    console.log('initRouteMap调用完成');
+                    initScrollReveal();
+                } catch (error) {
+                    console.error('地图初始化失败:', error);
+                    
+                    // 显示错误信息
+                    const mapElement = document.getElementById('route-map');
+                    if (mapElement) {
+                        mapElement.innerHTML = `
+                            <div class="flex items-center justify-center h-full">
+                                <div class="text-center">
+                                    <i class="fas fa-exclamation-triangle text-red-400 text-4xl mb-4"></i>
+                                    <p class="text-red-300">地图加载失败</p>
+                                    <p class="text-red-200 text-sm mt-2">${error.message}</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            }, 200);
+        }
+        
+        // 显示路线结果
+        function displayRouteResults(routeData, train) {
+            const routeResults = document.getElementById('routeResults');
+            
+            // 创建路线信息展示容器
+            const routeInfoContainer = document.createElement('div');
+            routeInfoContainer.className = 'bento-container';
+            
+            // Route Header
+            if (routeData.route_info) {
+                const routeHeader = document.createElement('div');
+                routeHeader.className = 'bento-container mb-16';
+                routeHeader.innerHTML = `
+                    <div class="bento-item span-8 bg-purple-gradient glow-purple text-center" style="grid-row: span 2;">
+                        <div class="section-number text-purple-500/20">02</div>
+                        <h2 class="text-6xl font-black text-white mb-4">${routeData.route_info.train_no}</h2>
+                        <p class="text-2xl text-purple-200 mb-6">${routeData.route_info.from_station} → ${routeData.route_info.to_station}</p>
+                        <p class="text-lg text-white/70">预计行程：${routeData.route_info.travel_time}</p>
+                        <div class="mt-6 inline-flex items-center space-x-2 bg-purple-500/20 px-4 py-2 rounded-full">
+                            <i class="fas fa-train text-purple-400"></i>
+                            <span class="text-purple-100">${train.train_type}</span>
+                        </div>
+                    </div>
+                    <div class="bento-item span-4 bg-green-gradient glow-green text-center" style="grid-row: span 2;">
+                        <div class="text-6xl font-black text-green-400 mb-4">${routeData.attractions?.length || 0}</div>
+                        <p class="text-xl text-green-200 mb-2">Cities</p>
+                        <p class="text-white/70">沿途城市</p>
+                    </div>
+                `;
+                routeResults.appendChild(routeHeader);
+            }
+            
+            // Attractions Bento Grid
+            if (routeData.attractions && routeData.attractions.length > 0) {
+                const attractionsGrid = document.createElement('div');
+                attractionsGrid.className = 'bento-container mb-16';
+                
+                routeData.attractions.forEach((attraction, index) => {
+                    // 生成景点图片
+                    const spotCards = attraction.scenic_spots.map((spot) => `
+                        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 hover:bg-white/90 transition-all duration-300 hover:scale-105">
+                            <img src="${spot.image || spot.name}" 
+                                 alt="${spot.name || spot}" 
+                                 class="w-full h-48 object-cover rounded-xl mb-4 loading-animation"
+                                 onerror="handleImageError(this, 'attraction')">
+                            <h5 class="text-xl font-bold text-gray-800 mb-2">${spot.name || spot}</h5>
+                            <p class="text-gray-600">探索${attraction.city}的文化瑰宝</p>
+                        </div>
+                    `).join('');
+                    
+                    // 生成美食图片
+                    const foodCards = attraction.local_food.map((food) => `
+                        <div class="bg-orange-50/80 backdrop-blur-sm rounded-2xl p-6 hover:bg-orange-50/90 transition-all duration-300 hover:scale-105">
+                            <img src="${food.image || food.name}" 
+                                 alt="${food.name || food}" 
+                                 class="w-full h-48 object-cover rounded-xl mb-4 loading-animation"
+                                 onerror="handleImageError(this, 'food')">
+                            <h5 class="text-xl font-bold text-gray-800 mb-2">${food.name || food}</h5>
+                            <p class="text-gray-600">品味${attraction.city}的地道美食</p>
+                        </div>
+                    `).join('');
+                    
+                    const attractionCard = document.createElement('div');
+                    attractionCard.className = `bento-item span-full bg-white/5 border-white/10 scroll-reveal`;
+                    attractionCard.style.animationDelay = `${index * 0.2}s`;
+                    attractionCard.innerHTML = `
+                        <div class="section-number text-white/10">${(index + 3).toString().padStart(2, '0')}</div>
+                        <div class="text-center mb-12">
+                            <h3 class="text-6xl font-black text-white mb-4">${attraction.city}</h3>
+                            <p class="text-xl text-blue-200 max-w-2xl mx-auto">${attraction.description}</p>
+                            <div class="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mt-6 rounded-full"></div>
+                        </div>
+                        
+                        <div class="grid lg:grid-cols-2 gap-12 mb-12">
+                            <div>
+                                <h4 class="text-3xl font-bold text-white mb-8 flex items-center line-graphic">
+                                    <i class="fas fa-camera text-blue-400 mr-4 text-2xl"></i>
+                                    景点推荐
+                                    <span class="text-lg text-blue-300 ml-4 font-normal">Attractions</span>
+                                </h4>
+                                <div class="grid gap-6">
+                                    ${spotCards}
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-3xl font-bold text-white mb-8 flex items-center line-graphic">
+                                    <i class="fas fa-utensils text-orange-400 mr-4 text-2xl"></i>
+                                    美食体验
+                                    <span class="text-lg text-orange-300 ml-4 font-normal">Cuisine</span>
+                                </h4>
+                                <div class="grid gap-6">
+                                    ${foodCards}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    attractionsGrid.appendChild(attractionCard);
+                });
+                
+                routeResults.appendChild(attractionsGrid);
+            }
+            
+            // Travel Tips
+            if (routeData.travel_tips && routeData.travel_tips.length > 0) {
+                const tipsGrid = document.createElement('div');
+                tipsGrid.className = 'bento-container';
+                tipsGrid.innerHTML = `
+                    <div class="bento-item span-full bg-yellow-500/10 border-yellow-500/20" style="box-shadow: 0 0 60px rgba(245, 158, 11, 0.3);">
+                        <div class="section-number text-yellow-500/20">99</div>
+                        <h4 class="text-4xl font-bold text-white mb-8 flex items-center line-graphic">
+                            <i class="fas fa-lightbulb text-yellow-400 mr-4 text-3xl"></i>
+                            旅行贴士
+                            <span class="text-xl text-yellow-300 ml-4 font-normal">Travel Tips</span>
+                        </h4>
+                        <div class="grid md:grid-cols-2 gap-8">
+                            ${routeData.travel_tips.map((tip, tipIndex) => `
+                                <div class="flex items-start gap-4 p-6 bg-yellow-50/10 rounded-2xl hover:bg-yellow-50/20 transition-all duration-300">
+                                    <div class="text-2xl font-black text-yellow-400">${(tipIndex + 1).toString().padStart(2, '0')}</div>
+                                    <p class="text-white/90 flex-1">${tip}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                routeResults.appendChild(tipsGrid);
+            }
+            
+            // 延迟调用图片增强功能，确保DOM已渲染
+            setTimeout(() => {
+                enhanceImageLoading();
+                initScrollReveal();
+            }, 100);
+        }
+
+        // 增强的图片加载和错误处理
+        function enhanceImageLoading() {
+            // 为所有图片添加懒加载和错误处理
+            const images = document.querySelectorAll('img[alt]');
+            images.forEach((img, index) => {
+                // 添加加载动画
+                img.style.background = 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)';
+                img.style.backgroundSize = '200% 100%';
+                img.style.animation = 'loading 1.5s infinite';
+                
+                // 图片加载成功
+                img.onload = function() {
+                    this.style.animation = 'none';
+                    this.style.background = 'none';
+                    this.style.opacity = '0';
+                    this.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => {
+                        this.style.opacity = '1';
+                    }, 50);
+                };
+                
+                // 图片加载失败，尝试备选方案
+                img.onerror = function() {
+                    const isFood = this.alt.includes('美食') || this.closest('.food-card');
+                    const fallbacks = isFood ? [
+                        'https://source.unsplash.com/400x300/?food,delicious',
+                        'https://source.unsplash.com/400x300/?chinese,cuisine',
+                        'https://source.unsplash.com/400x300/?meal,restaurant',
+                        `https://picsum.photos/400/300?random=${Math.random()}&blur=1`
+                    ] : [
+                        'https://source.unsplash.com/400x300/?travel,landmark',
+                        'https://source.unsplash.com/400x300/?architecture,building',
+                        'https://source.unsplash.com/400x300/?china,tourism',
+                        `https://picsum.photos/400/300?random=${Math.random()}&grayscale`
+                    ];
+                    
+                    const randomFallback = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+                    this.src = randomFallback;
+                    this.onerror = null; // 防止无限循环
+                };
+            });
+        }
+        
+        // 统一的图片错误处理函数
+        function handleImageError(img, type) {
+            const fallbacks = {
+                attraction: [
+                    'https://images.unsplash.com/photo-1439066615861-d1af74d74000?w=400&h=300&fit=crop',
+                    'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&h=300&fit=crop',
+                    'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop',
+                    'https://picsum.photos/400/300?random=' + Math.random()
+                ],
+                food: [
+                    'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop',
+                    'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&h=300&fit=crop',
+                    'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop',
+                    'https://picsum.photos/400/300?random=' + Math.random()
+                ]
+            };
+            
+            const typeImages = fallbacks[type] || fallbacks.attraction;
+            const randomImage = typeImages[Math.floor(Math.random() * typeImages.length)];
+            
+            img.src = randomImage;
+            img.onerror = null; // 防止无限循环
+        }
+        
+        // 添加CSS动画
+        const loadingStyle = document.createElement('style');
+        loadingStyle.textContent = `
+            @keyframes loading {
+                0% {
+                    background-position: 200% 0;
+                }
+                100% {
+                    background-position: -200% 0;
+                }
+            }
+            
+            .image-loading {
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .image-loading::before {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 40px;
+                height: 40px;
+                border: 3px solid #f3f3f3;
+                border-top: 3px solid #4f9cf9;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                z-index: 10;
+            }
+            
+            @keyframes spin {
+                0% { transform: translate(-50%, -50%) rotate(0deg); }
+                100% { transform: translate(-50%, -50%) rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(loadingStyle);
+        
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', () => {
+            initScrollReveal();
+            initParallax();
+            initRouteChart();
+        });
+    </script>
+</body>
+</html> 

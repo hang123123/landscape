@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试SelectTrain流程</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #2a2a2a;
+        }
+        
+        .log {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        button {
+            background: #4f9cf9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #3b82f6;
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SelectTrain 流程调试</h1>
+        
+        <div class="test-section">
+            <h3>测试控制</h3>
+            <button onclick="testSelectTrainFlow()">模拟selectTrain执行</button>
+            <button onclick="testDataProcessing()">测试数据处理</button>
+            <button onclick="testDisplayFunctions()">测试显示函数</button>
+            <button onclick="clearLog()">清空日志</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>执行状态</h3>
+            <div id="status" class="status loading">等待测试开始...</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>模拟显示区域</h3>
+            <div id="routeResults" style="background: #333; padding: 20px; border-radius: 8px; min-height: 200px;">
+                <!-- 这里模拟主页面的routeResults区域 -->
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>详细日志</h3>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // 日志记录
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('log');
+            const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
+            logElement.textContent += logEntry;
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            if (type === 'error') {
+                console.error(message);
+            } else if (type === 'warn') {
+                console.warn(message);
+            } else {
+                console.log(message);
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+        
+        function updateStatus(message, type = 'loading') {
+            const element = document.getElementById('status');
+            element.className = `status ${type}`;
+            element.textContent = message;
+        }
+        
+        // 模拟API调用
+        async function mockApiCall(url, data) {
+            log(`模拟API调用: ${url}`);
+            log(`请求数据: ${JSON.stringify(data)}`);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API调用失败: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            log(`API响应: ${JSON.stringify(result, null, 2)}`);
+            return result;
+        }
+        
+        // 复制主页面的displayRouteResults函数（简化版）
+        function displayRouteResults(routeData, train) {
+            log('开始执行displayRouteResults...');
+            const routeResults = document.getElementById('routeResults');
+            
+            try {
+                // 创建路线信息展示容器
+                const routeInfoContainer = document.createElement('div');
+                routeInfoContainer.style.background = '#444';
+                routeInfoContainer.style.padding = '20px';
+                routeInfoContainer.style.borderRadius = '8px';
+                routeInfoContainer.style.marginBottom = '20px';
+                
+                // Route Header
+                if (routeData.route_info) {
+                    log('处理路线信息头部...');
+                    const routeHeader = document.createElement('div');
+                    routeHeader.innerHTML = `
+                        <div style="text-align: center; color: white;">
+                            <h2>${routeData.route_info.train_no}</h2>
+                            <p>${routeData.route_info.from_station} → ${routeData.route_info.to_station}</p>
+                            <p>预计行程：${routeData.route_info.travel_time}</p>
+                        </div>
+                    `;
+                    routeResults.appendChild(routeHeader);
+                    log('路线信息头部添加完成');
+                }
+                
+                // Attractions
+                if (routeData.attractions && routeData.attractions.length > 0) {
+                    log(`处理${routeData.attractions.length}个景点信息...`);
+                    routeData.attractions.forEach((attraction, index) => {
+                        log(`处理景点 ${index + 1}: ${attraction.city}`);
+                        
+                        const attractionCard = document.createElement('div');
+                        attractionCard.style.background = '#555';
+                        attractionCard.style.padding = '15px';
+                        attractionCard.style.margin = '10px 0';
+                        attractionCard.style.borderRadius = '8px';
+                        attractionCard.style.color = 'white';
+                        
+                        attractionCard.innerHTML = `
+                            <h3>${attraction.city}</h3>
+                            <p>${attraction.description}</p>
+                            <div>
+                                <h4>景点:</h4>
+                                ${attraction.scenic_spots.map(spot => `<span style="background:#666;padding:2px 8px;margin:2px;border-radius:4px;display:inline-block;">${spot.name || spot}</span>`).join('')}
+                            </div>
+                            <div>
+                                <h4>美食:</h4>
+                                ${attraction.local_food.map(food => `<span style="background:#777;padding:2px 8px;margin:2px;border-radius:4px;display:inline-block;">${food.name || food}</span>`).join('')}
+                            </div>
+                        `;
+                        
+                        routeResults.appendChild(attractionCard);
+                        log(`景点 ${attraction.city} 添加完成`);
+                    });
+                    log('所有景点信息处理完成');
+                }
+                
+                // Travel Tips
+                if (routeData.travel_tips && routeData.travel_tips.length > 0) {
+                    log(`处理${routeData.travel_tips.length}个旅行贴士...`);
+                    const tipsContainer = document.createElement('div');
+                    tipsContainer.style.background = '#444';
+                    tipsContainer.style.padding = '15px';
+                    tipsContainer.style.borderRadius = '8px';
+                    tipsContainer.style.color = 'white';
+                    tipsContainer.innerHTML = `
+                        <h4>旅行贴士:</h4>
+                        ${routeData.travel_tips.map((tip, index) => `<p>${index + 1}. ${tip}</p>`).join('')}
+                    `;
+                    routeResults.appendChild(tipsContainer);
+                    log('旅行贴士添加完成');
+                }
+                
+                log('displayRouteResults执行完成 ✅');
+                
+            } catch (error) {
+                log(`displayRouteResults执行失败: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        // 复制主页面的displayRouteMap函数（简化版）  
+        async function displayRouteMap(stationsData) {
+            log('开始执行displayRouteMap...');
+            const routeResults = document.getElementById('routeResults');
+            
+            try {
+                // 清理之前可能存在的地图容器
+                const existingMapContainer = document.querySelector('#route-results-map-container');
+                if (existingMapContainer) {
+                    existingMapContainer.remove();
+                    log('清理了之前的地图容器');
+                }
+                
+                // 在路线结果开头插入地图容器
+                const mapContainer = document.createElement('div');
+                mapContainer.id = 'route-results-map-container';
+                mapContainer.style.background = '#555';
+                mapContainer.style.padding = '20px';
+                mapContainer.style.borderRadius = '8px';
+                mapContainer.style.marginBottom = '20px';
+                mapContainer.style.color = 'white';
+                mapContainer.innerHTML = `
+                    <h4>🗺️ 行程路线</h4>
+                    <div style="background: #666; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center;">
+                            <div>
+                                <div style="font-size: 24px; font-weight: bold; color: #4f9cf9;">${stationsData.train_info?.train_no || 'N/A'}</div>
+                                <div>车次</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 24px; font-weight: bold; color: #10b981;">${stationsData.train_info?.total_distance || 'N/A'}</div>
+                                <div>总里程</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 24px; font-weight: bold; color: #f59e0b;">${stationsData.train_info?.total_time || 'N/A'}</div>
+                                <div>总时长</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="route-map" style="height: 300px; background: #777; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 48px; margin-bottom: 10px;">🗺️</div>
+                            <p>地图加载区域（模拟）</p>
+                            <p style="font-size: 12px;">站点数量: ${stationsData.stations?.length || 0}</p>
+                        </div>
+                    </div>
+                `;
+                
+                // 将地图容器插入到结果的开头
+                routeResults.insertBefore(mapContainer, routeResults.firstChild);
+                log('地图容器已插入DOM');
+                
+                // 添加调试日志
+                log('地图容器已插入DOM，开始初始化地图...');
+                log(`站点数据: ${JSON.stringify(stationsData, null, 2)}`);
+                
+                // 模拟地图初始化延迟
+                setTimeout(() => {
+                    log('模拟地图初始化完成');
+                    updateStatus('地图显示完成', 'success');
+                }, 200);
+                
+                log('displayRouteMap执行完成 ✅');
+                
+            } catch (error) {
+                log(`displayRouteMap执行失败: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        // 模拟完整的selectTrain流程
+        async function testSelectTrainFlow() {
+            log('=== 开始模拟selectTrain流程 ===');
+            clearRoutResults();
+            updateStatus('正在执行selectTrain流程...', 'loading');
+            
+            // 添加全局错误处理
+            window.addEventListener('error', function(e) {
+                log(`JavaScript错误: ${e.message} at ${e.filename}:${e.lineno}`, 'error');
+            });
+            
+            window.addEventListener('unhandledrejection', function(e) {
+                log(`未处理的Promise拒绝: ${e.reason}`, 'error');
+            });
+            
+            // 模拟车次数据
+            const mockTrain = {
+                train_number: "G8266",
+                train_type: "高速动车",
+                departure_time: "08:00",
+                arrival_time: "12:00",
+                duration: "4小时",
+                price: "¥234"
+            };
+            
+            // 模拟表单数据
+            const mockFormData = {
+                origin: "上海",
+                destination: "宿迁"
+            };
+            
+            try {
+                log('1. 模拟显示加载状态...');
+                const routeResults = document.getElementById('routeResults');
+                routeResults.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #4f9cf9;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+                        <h3>正在查询路线信息...</h3>
+                        <p>AI正在为您规划最佳旅行路线</p>
+                    </div>
+                `;
+                
+                log('2. 开始获取路线风景信息...');
+                const routeResult = await mockApiCall('/api/get-route-info', {
+                    train_number: mockTrain.train_number,
+                    origin: mockFormData.origin,
+                    destination: mockFormData.destination
+                });
+                log('路线信息获取完成 ✅');
+                
+                log('3. 开始获取站点信息...');
+                const stationsResult = await mockApiCall('/api/get-route-stations', {
+                    train_number: mockTrain.train_number,
+                    origin: mockFormData.origin,
+                    destination: mockFormData.destination
+                });
+                log('站点信息获取完成 ✅');
+                
+                if (routeResult.success && stationsResult.success) {
+                    log('4. 开始显示路线结果...');
+                    clearRoutResults();
+                    
+                    // 添加一个小延迟确保DOM更新完成
+                    setTimeout(() => {
+                        displayRouteResults(routeResult.data, mockTrain);
+                        log('路线结果显示完成 ✅');
+                        
+                        log('5. 开始显示地图...');
+                        displayRouteMap(stationsResult.data).then(() => {
+                            log('地图显示完成 ✅');
+                            log('=== selectTrain流程全部完成 ✅ ===');
+                            updateStatus('全部流程执行成功', 'success');
+                        }).catch(error => {
+                            log(`地图显示失败: ${error.message}`, 'error');
+                            updateStatus(`地图显示失败: ${error.message}`, 'error');
+                        });
+                    }, 50);
+                } else {
+                    throw new Error(routeResult.message || stationsResult.message || '获取数据失败');
+                }
+                
+            } catch (error) {
+                log(`selectTrain流程失败: ${error.message}`, 'error');
+                updateStatus(`执行失败: ${error.message}`, 'error');
+                
+                const routeResults = document.getElementById('routeResults');
+                routeResults.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ff6b6b;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+                        <h3>获取路线信息失败</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function clearRoutResults() {
+            document.getElementById('routeResults').innerHTML = '';
+        }
+        
+        async function testDataProcessing() {
+            log('=== 测试数据处理 ===');
+            updateStatus('测试数据处理中...', 'loading');
+            
+            try {
+                const routeResult = await mockApiCall('/api/get-route-info', {
+                    train_number: "G8266",
+                    origin: "上海", 
+                    destination: "宿迁"
+                });
+                
+                const stationsResult = await mockApiCall('/api/get-route-stations', {
+                    train_number: "G8266",
+                    origin: "上海",
+                    destination: "宿迁"
+                });
+                
+                log('数据格式验证:');
+                log(`- routeResult.success: ${routeResult.success}`);
+                log(`- stationsResult.success: ${stationsResult.success}`);
+                log(`- attractions数量: ${routeResult.data.attractions?.length || 0}`);
+                log(`- stations数量: ${stationsResult.data.stations?.length || 0}`);
+                
+                updateStatus('数据处理测试完成', 'success');
+                
+            } catch (error) {
+                log(`数据处理测试失败: ${error.message}`, 'error');
+                updateStatus(`数据处理失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testDisplayFunctions() {
+            log('=== 测试显示函数 ===');
+            updateStatus('测试显示函数中...', 'loading');
+            
+            try {
+                // 获取测试数据
+                const routeResult = await mockApiCall('/api/get-route-info', {
+                    train_number: "G8266",
+                    origin: "上海",
+                    destination: "宿迁"
+                });
+                
+                const stationsResult = await mockApiCall('/api/get-route-stations', {
+                    train_number: "G8266", 
+                    origin: "上海",
+                    destination: "宿迁"
+                });
+                
+                clearRoutResults();
+                
+                log('测试displayRouteResults...');
+                displayRouteResults(routeResult.data, {train_type: "高速动车"});
+                
+                log('测试displayRouteMap...');
+                await displayRouteMap(stationsResult.data);
+                
+                log('显示函数测试完成 ✅');
+                updateStatus('显示函数测试完成', 'success');
+                
+            } catch (error) {
+                log(`显示函数测试失败: ${error.message}`, 'error');
+                updateStatus(`显示函数测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 页面加载完成后自动开始
+        document.addEventListener('DOMContentLoaded', () => {
+            log('调试环境初始化完成');
+            updateStatus('准备就绪，点击按钮开始测试', 'success');
+        });
+    </script>
+</body>
+</html> 
